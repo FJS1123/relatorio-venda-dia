@@ -320,7 +320,7 @@
     </div>
 
     <footer>
-        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v1.3)
+        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v1.4)
     </footer>
 </div>
 
@@ -348,21 +348,30 @@
     let isEditMode = false;
     let isDataLoaded = false;
 
+    // Equipe padrão de segurança caso o banco retorne vazio
+    const defaultData = [
+        { name: "AMANDA MOREIRA DORNELES", status: "Ativo", meta: 2174, venda: 794, clientes: 30, desconto: 1.51, ticket: 26 },
+        { name: "ARIANE LOURENCO CUTHI", status: "Ativo", meta: 848, venda: 135, clientes: 1, desconto: 24.89, ticket: 135 },
+        { name: "CATIELE ZAIACZKOSKI", status: "Ativo", meta: 879, venda: 1519, clientes: 20, desconto: 11.33, ticket: 76 },
+        { name: "CRISTIANE DOS SANTOS KIRSCH", status: "Ativo", meta: 3864, venda: 3644, clientes: 51, desconto: 6.95, ticket: 71 },
+        { name: "EMILY VITORIA BORBA DOS REIS", status: "Ativo", meta: 2143, venda: 2063, clientes: 47, desconto: 4.77, ticket: 44 },
+        { name: "GILBERTO AFONSO DIEDER", status: "Ativo", meta: 1591, venda: 1584, clientes: 33, desconto: 6.10, ticket: 48 },
+        { name: "NICOLAS SOUZA DE OLIVEIRA", status: "Ativo", meta: 30000, venda: 219, clientes: 4, desconto: 0.0, ticket: 55 }
+    ];
+
     /* ==========================================
        SINCRONIZAÇÃO SEGURA EM TEMPO REAL COM FIREBASE
        ========================================== */
     db.ref('painel_farmacia').on('value', (snapshot) => {
         const val = snapshot.val();
-        if (val) {
-            if (val.funcionarios && Array.isArray(val.funcionarios)) {
-                data = val.funcionarios;
-            }
-            if (val.metaLoja !== undefined) {
-                storeMetaManual = val.metaLoja;
-            }
-            if (val.titulo) {
-                panelTitle = val.titulo;
-            }
+        if (val && val.funcionarios && Array.isArray(val.funcionarios) && val.funcionarios.length > 0) {
+            data = val.funcionarios;
+            if (val.metaLoja !== undefined) storeMetaManual = val.metaLoja;
+            if (val.titulo) panelTitle = val.titulo;
+        } else {
+            // Se o Firebase estiver vazio, carrega os dados padrão para a tabela não sumir
+            data = defaultData;
+            saveToFirebase();
         }
         isDataLoaded = true;
         sortData();

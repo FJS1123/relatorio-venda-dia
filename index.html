@@ -6,7 +6,10 @@
     <title>Controle de Metas - Farmácia</title>
     
     <!-- ==========================================
-       IMPORTAÇÃO DE BIBLIOTECAS EXTERNAS (COMPAT)
+       IMPORTAÇÃO DE BIBLIOTECAS EXTERNAS
+       - Firebase: Banco de dados em tempo real
+       - SheetJS (XLSX): Leitura e parsing de arquivos Excel
+       - html2canvas & jsPDF: Motores para exportação de imagem/PDF
        ========================================== -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -260,7 +263,7 @@
         </div>
     </header>
 
-    <!-- Bloco com os indicadores consolidados da Loja -->
+    <!-- Bloco com os indicadores consolidados da Loja (Meta do Dia) -->
     <div class="store-summary-box">
         <table>
             <thead>
@@ -276,7 +279,7 @@
             <tbody>
                 <tr style="font-weight: bold; background: #ffffff;">
                     <td id="store-meta-container">
-                        <input type="number" id="store-meta" class="editable-input text-right" value="450726" onchange="updateStoreMeta(this.value)">
+                        <input type="number" id="store-meta" class="editable-input text-right" value="14095" onchange="updateStoreMeta(this.value)">
                     </td>
                     <td id="store-realizado" class="text-right">R$ 0,00</td>
                     <td id="store-falta" class="text-right">R$ 0,00</td>
@@ -339,24 +342,12 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let storeMetaManual = 450726;
+    let storeMetaManual = 14095; // Meta padrão do dia
     let panelTitle = "METAS - OUTUBRO";
     let data = [];
     let isEditMode = false;
 
-    const defaultData = [
-        { name: "AMANDA MOREIRA DORNELES", status: "Ativo", meta: 50000, venda: 24364, clientes: 478, desconto: 2.56, ticket: 51 },
-        { name: "ARIANE LOURENCO CUTHI", status: "Ativo", meta: 22040, venda: 17998, clientes: 212, desconto: 4.35, ticket: 85 },
-        { name: "CATIELE ZAIACZKOSKI", status: "Ativo", meta: 22867, venda: 31961, clientes: 301, desconto: 4.90, ticket: 106 },
-        { name: "CRISTIANE DOS SANTOS KIRSCH", status: "Ativo", meta: 85000, venda: 55654, clientes: 755, desconto: 3.70, ticket: 74 },
-        { name: "EMILY VITORIA BORBA DOS REIS", status: "Ativo", meta: 45000, venda: 29723, clientes: 703, desconto: 0.85, ticket: 42 },
-        { name: "GILBERTO AFONSO DIEDER", status: "Ativo", meta: 35000, venda: 31992, clientes: 447, desconto: 5.98, ticket: 72 },
-        { name: "KÁSSIA RAFAELLA MOUTINHO", status: "Ativo", meta: 85000, venda: 60023, clientes: 831, desconto: 3.99, ticket: 72 },
-        { name: "LEONARDO KRAUSE", status: "Ativo", meta: 85000, venda: 55955, clientes: 704, desconto: 3.60, ticket: 79 },
-        { name: "ROSANE DE FATIMA MOREIRA DORNELES", status: "Ativo", meta: 50000, venda: 30707, clientes: 563, desconto: 3.16, ticket: 55 },
-        { name: "SILMAR SARTOR DOS PASSOS", status: "Sem Meta", meta: 30000, venda: 4415, clientes: 58, desconto: 3.97, ticket: 76 },
-        { name: "STEFANY SOUZA SARMENTO", status: "Ativo", meta: 50000, venda: 25998, clientes: 647, desconto: 0.75, ticket: 40 }
-    ];
+    const defaultData = [];
 
     /* ==========================================
        SINCRONIZAÇÃO EM TEMPO REAL COM FIREBASE
@@ -365,11 +356,11 @@
         const val = snapshot.val();
         if (val) {
             data = val.funcionarios || [];
-            storeMetaManual = val.metaLoja !== undefined ? val.metaLoja : 450726;
+            storeMetaManual = val.metaLoja !== undefined ? val.metaLoja : 14095;
             panelTitle = val.titulo || "METAS - OUTUBRO";
         } else {
             data = defaultData;
-            storeMetaManual = 450726;
+            storeMetaManual = 14095;
             panelTitle = "METAS - OUTUBRO";
             saveToFirebase();
         }
@@ -472,7 +463,7 @@
     }
 
     /* ==========================================
-       IMPORTAÇÃO DE EXCEL
+       IMPORTAÇÃO DE EXCEL (EXTRAINDO META E VENDA DO DIA DA LOJA)
        ========================================== */
     function handleExcelImport(e) {
         const file = e.target.files[0];
@@ -485,24 +476,33 @@
             
             let newImportedEmployees = [];
 
-            for (let i = 1; i < json.length; i++) {
+            for (let i = 0; i < json.length; i++) {
                 let row = json[i];
-                let nome = row[0] || row[1];
+                let nome = row[0];
                 
                 if (nome && typeof nome === 'string') {
                     nome = nome.trim();
                     let upperName = nome.toUpperCase();
                     
-                    if (upperName.includes("PORTAO") || upperName.includes("TOTAL") || upperName.includes("COLABORADOR") || upperName.startsWith("1123") || upperName === "") {
+                    // Se for a linha da loja (ex: 1123 - PORTAO 2), extrai a meta do dia automaticamente!
+                    if (upperName.includes("PORTAO") || upperName.startsWith("1123")) {
+                        let metaDiaLoja = cleanNumber(row[5]);
+                        if (metaDiaLoja > 0) {
+                            storeMetaManual = metaDiaLoja;
+                        }
                         continue;
                     }
 
+                    if (upperName.includes("TOTAL") || upperName.includes("COLABORADOR") || upperName === "") {
+                        continue;
+                    }
+
+                    let metaVal = cleanNumber(row[5]);
                     let vendaVal = cleanNumber(row[4]);
                     let rawDesc = cleanNumber(row[7]);
                     let descVal = rawDesc <= 1 ? rawDesc * 100 : rawDesc;
                     let ticketVal = cleanNumber(row[8]);
                     let clientesVal = parseInt(row[11]) || 0;
-                    let metaVal = cleanNumber(row[5]);
 
                     let existing = data.find(emp => emp.name.toUpperCase().trim() === upperName);
                     let statusToUse = existing ? existing.status : "Ativo";
@@ -523,7 +523,7 @@
             if (newImportedEmployees.length > 0) {
                 data = newImportedEmployees;
                 saveToFirebase();
-                alert("Planilha importada e dados salvos no Firebase com sucesso!");
+                alert("Planilha importada com sucesso! Meta do dia atualizada.");
             } else {
                 alert("Nenhum colaborador válido foi encontrado na planilha.");
             }

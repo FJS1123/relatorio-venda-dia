@@ -257,6 +257,7 @@
                 📂 Importar Excel <input type="file" id="excel-file" accept=".xlsx, .xls" onchange="handleExcelImport(event)">
             </label>
             <button class="edit-only" onclick="addRow()">+ Adicionar</button>
+            <button class="btn-danger edit-only" onclick="clearTable()">🗑️ Limpar Tabela</button>
             <button class="btn-success" onclick="exportPDF()">Exportar PDF</button>
             <button class="btn-danger" onclick="exportJPG()">Exportar JPG</button>
         </div>
@@ -366,7 +367,7 @@
     db.ref('painel_farmacia').on('value', (snapshot) => {
         const val = snapshot.val();
         if (val) {
-            data = val.funcionarios || defaultData;
+            data = val.funcionarios || [];
             storeMetaManual = val.metaLoja !== undefined ? val.metaLoja : 450726;
             panelTitle = val.titulo || "METAS - OUTUBRO";
         } else {
@@ -459,6 +460,13 @@
         }
     }
 
+    function clearTable() {
+        if(confirm("Tem certeza que deseja limpar todos os colaboradores da tabela?")) {
+            data = [];
+            saveToFirebase();
+        }
+    }
+
     function cleanNumber(val) {
         if (typeof val === 'number') return val;
         if (!val) return 0;
@@ -482,7 +490,7 @@
 
             for (let i = 1; i < json.length; i++) {
                 let row = json[i];
-                let nome = row[0] || row[1]; // Pega obrigatoriamente o Nome do funcionário na Coluna 0 ou 1
+                let nome = row[0] || row[1];
                 
                 if (nome && typeof nome === 'string') {
                     nome = nome.trim();
@@ -497,9 +505,8 @@
                     let descVal = rawDesc <= 1 ? rawDesc * 100 : rawDesc;
                     let ticketVal = cleanNumber(row[8]);
                     let clientesVal = parseInt(row[11]) || 0;
-                    let metaVal = cleanNumber(row[5]); // Lê a meta da planilha se houver, senão mantém padrão
+                    let metaVal = cleanNumber(row[5]);
 
-                    // Verifica se já existe na lista atual para preservar o status personalizado (Férias, Gestora, etc.) e a meta individual cadastrada
                     let existing = data.find(emp => emp.name.toUpperCase().trim() === upperName);
                     let statusToUse = existing ? existing.status : "Ativo";
                     let finalMeta = (existing && existing.meta > 0) ? existing.meta : (metaVal > 0 ? metaVal : 30000);
@@ -517,10 +524,9 @@
             }
 
             if (newImportedEmployees.length > 0) {
-                // Substitui completamente a lista pelos dados frescos da planilha importada
                 data = newImportedEmployees;
                 saveToFirebase();
-                alert("Planilha importada e tabela limpa/atualizada com sucesso!");
+                alert("Planilha importada e tabela atualizada com sucesso!");
             } else {
                 alert("Nenhum colaborador válido foi encontrado na planilha.");
             }

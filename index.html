@@ -320,7 +320,7 @@
     </div>
 
     <footer>
-        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v1.1)
+        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v1.2)
     </footer>
 </div>
 
@@ -346,19 +346,28 @@
     let panelTitle = "METAS - 29/10/2026";
     let data = [];
     let isEditMode = false;
+    let isInitialLoad = true;
 
     /* ==========================================
        SINCRONIZAÇÃO SEGURA EM TEMPO REAL COM FIREBASE
        ========================================== */
     db.ref('painel_farmacia').on('value', (snapshot) => {
         const val = snapshot.val();
-        if (val && val.funcionarios) {
-            data = val.funcionarios;
-            storeMetaManual = val.metaLoja !== undefined ? val.metaLoja : 14095;
-            panelTitle = val.titulo || "METAS - 29/10/2026";
-        } else {
+        if (val) {
+            if (val.funcionarios) {
+                data = val.funcionarios;
+            }
+            if (val.metaLoja !== undefined) {
+                storeMetaManual = val.metaLoja;
+            }
+            if (val.titulo) {
+                panelTitle = val.titulo;
+            }
+        } else if (isInitialLoad) {
+            // Se o banco estiver completamente vazio na primeira abertura, inicializa com dados salvos padrão
             saveToFirebase();
         }
+        isInitialLoad = false;
         sortData();
         renderTable();
     });

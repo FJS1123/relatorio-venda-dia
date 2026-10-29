@@ -98,7 +98,7 @@
         .btn-success:hover { background-color: #273e18; }
         .btn-danger { background-color: var(--sj-red); color: white; border-color: #bd141b; }
         .btn-danger:hover { background-color: #bd141b; }
-        .btn-mode { background-color: var(--sj-blue); color: white; border-color: #1f2165; }
+        .btn-mode { background-color: #2E3192; color: white; border-color: #1f2165; }
         .btn-mode:hover { background-color: #1f2165; }
 
         input[type="file"] { display: none; }
@@ -295,7 +295,7 @@
     </div>
 
     <footer>
-        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v1.6)
+        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v1.7)
     </footer>
 </div>
 
@@ -319,7 +319,6 @@
     let data = [];
     let isEditMode = false;
 
-    // Dados padrão iniciais de segurança
     const defaultData = [
         { name: "AMANDA MOREIRA DORNELES", status: "Ativo", meta: 2174, venda: 794, clientes: 30, desconto: 1.51, ticket: 26 },
         { name: "ARIANE LOURENCO CUTHI", status: "Ativo", meta: 848, venda: 135, clientes: 1, desconto: 24.89, ticket: 135 },
@@ -327,10 +326,9 @@
         { name: "CRISTIANE DOS SANTOS KIRSCH", status: "Ativo", meta: 3864, venda: 3644, clientes: 51, desconto: 6.95, ticket: 71 },
         { name: "EMILY VITORIA BORBA DOS REIS", status: "Ativo", meta: 2143, venda: 2063, clientes: 47, desconto: 4.77, ticket: 44 },
         { name: "GILBERTO AFONSO DIEDER", status: "Ativo", meta: 1591, venda: 1584, clientes: 33, desconto: 6.10, ticket: 48 },
-        { name: "NICOLAS SOUZA DE OLIVEIRA", status: "Ativo", meta: 30000, venda: 219, clientes: 4, desconto: 0.0, ticket: 55 }
+        { name: "NICOLAS SOUZA DE OLIVEIRA", status: "Sem Meta", meta: 0, venda: 219, clientes: 4, desconto: 0.0, ticket: 55 }
     ];
 
-    // CARREGAMENTO INSTANTÂNEO VIA LOCALSTORAGE (PREVINE QUALQUER SUMIÇO AO DAR F5)
     function loadFromCache() {
         const cachedData = localStorage.getItem('fsj_data');
         const cachedMeta = localStorage.getItem('fsj_metaLoja');
@@ -351,7 +349,6 @@
 
     loadFromCache();
 
-    // SINCRONIZAÇÃO EM SEGUNDO PLANO COM FIREBASE
     db.ref('painel_farmacia').once('value').then((snapshot) => {
         const val = snapshot.val();
         if (val && val.funcionarios && val.funcionarios.length > 0) {
@@ -530,8 +527,10 @@
                     let clientesVal = parseInt(row[11]) || 0;
 
                     let existing = data.find(emp => emp.name.toUpperCase().trim() === upperName);
-                    let statusToUse = existing ? existing.status : "Ativo";
-                    let finalMeta = (existing && existing.meta > 0) ? existing.meta : (metaVal > 0 ? metaVal : 30000);
+                    
+                    // Se houver registro anterior, mantém o status dele. Se for novo, define como "Sem Meta" se meta for 0, senão "Ativo".
+                    let statusToUse = existing ? existing.status : (metaVal > 0 ? "Ativo" : "Sem Meta");
+                    let finalMeta = existing ? existing.meta : (metaVal > 0 ? metaVal : 0);
 
                     newImportedEmployees.push({
                         name: upperName,

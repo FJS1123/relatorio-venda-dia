@@ -347,21 +347,22 @@
     let data = [];
     let isEditMode = false;
 
-    const defaultData = [];
-
     /* ==========================================
-       SINCRONIZAÇÃO EM TEMPO REAL COM FIREBASE
+       SINCRONIZAÇÃO SEGURA EM TEMPO REAL COM FIREBASE
        ========================================== */
     db.ref('painel_farmacia').on('value', (snapshot) => {
         const val = snapshot.val();
-        if (val) {
-            data = val.funcionarios || [];
+        if (val && val.funcionarios && val.funcionarios.length > 0) {
+            data = val.funcionarios;
+            storeMetaManual = val.metaLoja !== undefined ? val.metaLoja : 14095;
+            panelTitle = val.titulo || "METAS - 29/10/2026";
+        } else if (val && val.funcionarios && val.funcionarios.length === 0) {
+            // Se o banco estiver explicitamente limpo pelo usuário
+            data = [];
             storeMetaManual = val.metaLoja !== undefined ? val.metaLoja : 14095;
             panelTitle = val.titulo || "METAS - 29/10/2026";
         } else {
-            data = defaultData;
-            storeMetaManual = 14095;
-            panelTitle = "METAS - 29/10/2026";
+            // Se o nó não existir pela primeira vez, inicializa vazio sem sobrescrever dados futuros
             saveToFirebase();
         }
         sortData();
@@ -463,13 +464,12 @@
     }
 
     /* ==========================================
-       IMPORTAÇÃO DE EXCEL (EXTRAINDO A DATA DO NOME DO ARQUIVO)
+       IMPORTAÇÃO DE EXCEL
        ========================================== */
     function handleExcelImport(e) {
         const file = e.target.files[0];
         if (!file) return;
 
-        // Tenta capturar a data do nome do arquivo (ex: equipes_29_10_2026_09h03.xlsx -> 29/10/2026)
         const matchData = file.name.match(/(\d{2})_(\d{2})_(\d{4})/);
         if (matchData) {
             panelTitle = `METAS - ${matchData[1]}/${matchData[2]}/${matchData[3]}`;
@@ -497,7 +497,6 @@
                     nome = nome.trim();
                     let upperName = nome.toUpperCase();
                     
-                    // Se for a linha da loja (ex: 1123 - PORTAO 2), extrai a meta do dia
                     if (upperName.includes("PORTAO") || upperName.startsWith("1123")) {
                         let metaDiaLoja = cleanNumber(row[5]);
                         if (metaDiaLoja > 0) {

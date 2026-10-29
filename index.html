@@ -6,10 +6,7 @@
     <title>Controle de Metas - Farmácia</title>
     
     <!-- ==========================================
-       IMPORTAÇÃO DE BIBLIOTECAS EXTERNAS
-       - Firebase: Banco de dados em tempo real
-       - SheetJS (XLSX): Leitura e parsing de arquivos Excel
-       - html2canvas & jsPDF: Motores para exportação de imagem/PDF
+       IMPORTAÇÃO DE BIBLIOTECAS EXTERNAS (COMPAT)
        ========================================== -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -326,17 +323,17 @@
 
 <script>
     /* ==========================================
-       CONEXÃO COM O FIREBASE (Realtime Database)
+       CONEXÃO COM O FIREBASE (fsj-venda-do-dia)
        ========================================== */
     const firebaseConfig = {
-        apiKey: "AIzaSyDBCSa--ECyj7Q1nFw8yVgBZFS-9qE3is",
-        authDomain: "fsj-planilha.firebaseapp.com",
-        databaseURL: "https://fsj-planilha-default-rtdb.firebaseio.com",
-        projectId: "fsj-planilha",
-        storageBucket: "fsj-planilha.appspot.com",
-        messagingSenderId: "744936557439",
-        appId: "1:744936557439:web:3f3d85335b32bb98dba84a",
-        measurementId: "G-XT2XZ3MZVW"
+        apiKey: "AIzaSyBqWOruIwYwBZakRfiAnD9mIFc0PQqn4VI",
+        authDomain: "fsj-venda-do-dia.firebaseapp.com",
+        databaseURL: "https://fsj-venda-do-dia-default-rtdb.firebaseio.com",
+        projectId: "fsj-venda-do-dia",
+        storageBucket: "fsj-venda-do-dia.appfirebasestorage.app",
+        messagingSenderId: "485335958920",
+        appId: "1:485335958920:web:c58595ced053f6c69ca63d",
+        measurementId: "G-9Y7LPGT5Z0"
     };
 
     firebase.initializeApp(firebaseConfig);
@@ -362,7 +359,7 @@
     ];
 
     /* ==========================================
-       SINCRONIZAÇÃO EM TEMPO REAL
+       SINCRONIZAÇÃO EM TEMPO REAL COM FIREBASE
        ========================================== */
     db.ref('painel_farmacia').on('value', (snapshot) => {
         const val = snapshot.val();
@@ -475,7 +472,7 @@
     }
 
     /* ==========================================
-       IMPORTAÇÃO DE EXCEL (CORRIGIDA E LIMPEZA)
+       IMPORTAÇÃO DE EXCEL
        ========================================== */
     function handleExcelImport(e) {
         const file = e.target.files[0];
@@ -526,7 +523,7 @@
             if (newImportedEmployees.length > 0) {
                 data = newImportedEmployees;
                 saveToFirebase();
-                alert("Planilha importada e tabela atualizada com sucesso!");
+                alert("Planilha importada e dados salvos no Firebase com sucesso!");
             } else {
                 alert("Nenhum colaborador válido foi encontrado na planilha.");
             }

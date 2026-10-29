@@ -295,7 +295,7 @@
     </div>
 
     <footer>
-        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v1.7)
+        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v1.9)
     </footer>
 </div>
 
@@ -526,9 +526,8 @@
                     let ticketVal = cleanNumber(row[8]);
                     let clientesVal = parseInt(row[11]) || 0;
 
+                    // Verifica se o funcionário já existia na tabela para preservar o status personalizado (ex: Gestora, Férias, Sem Meta)
                     let existing = data.find(emp => emp.name.toUpperCase().trim() === upperName);
-                    
-                    // Se houver registro anterior, mantém o status dele. Se for novo, define como "Sem Meta" se meta for 0, senão "Ativo".
                     let statusToUse = existing ? existing.status : (metaVal > 0 ? "Ativo" : "Sem Meta");
                     let finalMeta = existing ? existing.meta : (metaVal > 0 ? metaVal : 0);
 
@@ -545,9 +544,9 @@
             }
 
             if (newImportedEmployees.length > 0) {
-                data = newImportedEmployees;
+                data = newImportedEmployees; // Substitui exatamente pelos funcionários que vieram na planilha do dia
                 saveToFirebase();
-                alert(`Planilha importada com sucesso! Título atualizado para: ${panelTitle}`);
+                alert(`Planilha importada com sucesso! Apenas os funcionários do dia foram mantidos (${data.length} colaboradores).`);
             } else {
                 alert("Nenhum colaborador válido foi encontrado na planilha.");
             }
@@ -726,7 +725,7 @@
                 renderTable();
             }
             
-            const imgData = canvas.toDataURL('image/png');
+            const imgData = canvas.toDataURL('png');
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('landscape', 'mm', 'a4');
             pdf.addImage(imgData, 'PNG', 10, 10, 280, (canvas.height * 280) / canvas.width);

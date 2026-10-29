@@ -467,7 +467,7 @@
     }
 
     /* ==========================================
-       IMPORTAÇÃO DE EXCEL (CORRIGIDA)
+       IMPORTAÇÃO DE EXCEL (CORRIGIDA E LIMPEZA)
        ========================================== */
     function handleExcelImport(e) {
         const file = e.target.files[0];
@@ -478,11 +478,11 @@
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
             const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
             
-            let importedMap = new Map();
+            let newImportedEmployees = [];
 
             for (let i = 1; i < json.length; i++) {
                 let row = json[i];
-                let nome = row[0] || row[1] || row[2];
+                let nome = row[0] || row[1]; // Pega obrigatoriamente o Nome do funcionário na Coluna 0 ou 1
                 
                 if (nome && typeof nome === 'string') {
                     nome = nome.trim();
@@ -493,14 +493,21 @@
                     }
 
                     let vendaVal = cleanNumber(row[4]);
-                    
                     let rawDesc = cleanNumber(row[7]);
                     let descVal = rawDesc <= 1 ? rawDesc * 100 : rawDesc;
-                    
                     let ticketVal = cleanNumber(row[8]);
                     let clientesVal = parseInt(row[11]) || 0;
+                    let metaVal = cleanNumber(row[5]); // Lê a meta da planilha se houver, senão mantém padrão
 
-                    importedMap.set(upperName, {
+                    // Verifica se já existe na lista atual para preservar o status personalizado (Férias, Gestora, etc.) e a meta individual cadastrada
+                    let existing = data.find(emp => emp.name.toUpperCase().trim() === upperName);
+                    let statusToUse = existing ? existing.status : "Ativo";
+                    let finalMeta = (existing && existing.meta > 0) ? existing.meta : (metaVal > 0 ? metaVal : 30000);
+
+                    newImportedEmployees.push({
+                        name: upperName,
+                        status: statusToUse,
+                        meta: finalMeta,
                         venda: vendaVal,
                         clientes: clientesVal,
                         desconto: descVal,
@@ -509,39 +516,13 @@
                 }
             }
 
-            let updatedCount = 0;
-
-            data.forEach(emp => {
-                let key = emp.name.toUpperCase().trim();
-                if (importedMap.has(key)) {
-                    let imp = importedMap.get(key);
-                    emp.venda = imp.venda;
-                    emp.clientes = imp.clientes;
-                    emp.desconto = imp.desconto;
-                    emp.ticket = imp.ticket;
-                    updatedCount++;
-                    importedMap.delete(key);
-                }
-            });
-
-            importedMap.forEach((imp, nameKey) => {
-                data.push({
-                    name: nameKey,
-                    status: "Ativo",
-                    meta: 30000,
-                    venda: imp.venda,
-                    clientes: imp.clientes,
-                    desconto: imp.desconto,
-                    ticket: imp.ticket
-                });
-                updatedCount++;
-            });
-
-            if (updatedCount > 0) {
+            if (newImportedEmployees.length > 0) {
+                // Substitui completamente a lista pelos dados frescos da planilha importada
+                data = newImportedEmployees;
                 saveToFirebase();
-                alert("Planilha importada com sucesso!");
+                alert("Planilha importada e tabela limpa/atualizada com sucesso!");
             } else {
-                alert("Nenhum colaborador correspondente encontrado.");
+                alert("Nenhum colaborador válido foi encontrado na planilha.");
             }
         };
         reader.readAsArrayBuffer(file);

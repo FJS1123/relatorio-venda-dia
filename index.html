@@ -248,7 +248,7 @@
     <header>
         <div class="brand-area">
             <!-- Título do painel -->
-            <input type="text" id="titulo-painel" class="editable-title" value="METAS - OUTUBRO" onchange="updateTitle(this.value)">
+            <input type="text" id="titulo-painel" class="editable-title" value="METAS - 29/10/2026" onchange="updateTitle(this.value)">
         </div>
         <div class="actions" id="no-print">
             <!-- Botão para alternar entre Modo Edição e Modo Fixo -->
@@ -342,8 +342,8 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let storeMetaManual = 14095; // Meta padrão do dia
-    let panelTitle = "METAS - OUTUBRO";
+    let storeMetaManual = 14095;
+    let panelTitle = "METAS - 29/10/2026";
     let data = [];
     let isEditMode = false;
 
@@ -357,11 +357,11 @@
         if (val) {
             data = val.funcionarios || [];
             storeMetaManual = val.metaLoja !== undefined ? val.metaLoja : 14095;
-            panelTitle = val.titulo || "METAS - OUTUBRO";
+            panelTitle = val.titulo || "METAS - 29/10/2026";
         } else {
             data = defaultData;
             storeMetaManual = 14095;
-            panelTitle = "METAS - OUTUBRO";
+            panelTitle = "METAS - 29/10/2026";
             saveToFirebase();
         }
         sortData();
@@ -463,11 +463,24 @@
     }
 
     /* ==========================================
-       IMPORTAÇÃO DE EXCEL (EXTRAINDO META E VENDA DO DIA DA LOJA)
+       IMPORTAÇÃO DE EXCEL (EXTRAINDO A DATA DO NOME DO ARQUIVO)
        ========================================== */
     function handleExcelImport(e) {
         const file = e.target.files[0];
         if (!file) return;
+
+        // Tenta capturar a data do nome do arquivo (ex: equipes_29_10_2026_09h03.xlsx -> 29/10/2026)
+        const matchData = file.name.match(/(\d{2})_(\d{2})_(\d{4})/);
+        if (matchData) {
+            panelTitle = `METAS - ${matchData[1]}/${matchData[2]}/${matchData[3]}`;
+        } else {
+            const hoje = new Date();
+            const dia = String(hoje.getDate()).padStart(2, '0');
+            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+            const ano = hoje.getFullYear();
+            panelTitle = `METAS - ${dia}/${mes}/${ano}`;
+        }
+
         const reader = new FileReader();
         reader.onload = function(e) {
             const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
@@ -484,7 +497,7 @@
                     nome = nome.trim();
                     let upperName = nome.toUpperCase();
                     
-                    // Se for a linha da loja (ex: 1123 - PORTAO 2), extrai a meta do dia automaticamente!
+                    // Se for a linha da loja (ex: 1123 - PORTAO 2), extrai a meta do dia
                     if (upperName.includes("PORTAO") || upperName.startsWith("1123")) {
                         let metaDiaLoja = cleanNumber(row[5]);
                         if (metaDiaLoja > 0) {
@@ -523,7 +536,7 @@
             if (newImportedEmployees.length > 0) {
                 data = newImportedEmployees;
                 saveToFirebase();
-                alert("Planilha importada com sucesso! Meta do dia atualizada.");
+                alert(`Planilha importada com sucesso! Título atualizado para: ${panelTitle}`);
             } else {
                 alert("Nenhum colaborador válido foi encontrado na planilha.");
             }

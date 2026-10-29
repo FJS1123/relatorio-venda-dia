@@ -320,7 +320,7 @@
     </div>
 
     <footer>
-        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v1.2)
+        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v1.3)
     </footer>
 </div>
 
@@ -346,7 +346,7 @@
     let panelTitle = "METAS - 29/10/2026";
     let data = [];
     let isEditMode = false;
-    let isInitialLoad = true;
+    let isDataLoaded = false;
 
     /* ==========================================
        SINCRONIZAÇÃO SEGURA EM TEMPO REAL COM FIREBASE
@@ -354,7 +354,7 @@
     db.ref('painel_farmacia').on('value', (snapshot) => {
         const val = snapshot.val();
         if (val) {
-            if (val.funcionarios) {
+            if (val.funcionarios && Array.isArray(val.funcionarios)) {
                 data = val.funcionarios;
             }
             if (val.metaLoja !== undefined) {
@@ -363,11 +363,8 @@
             if (val.titulo) {
                 panelTitle = val.titulo;
             }
-        } else if (isInitialLoad) {
-            // Se o banco estiver completamente vazio na primeira abertura, inicializa com dados salvos padrão
-            saveToFirebase();
         }
-        isInitialLoad = false;
+        isDataLoaded = true;
         sortData();
         renderTable();
     });
@@ -377,6 +374,7 @@
     }
 
     function saveToFirebase() {
+        if (!isDataLoaded) return;
         sortData();
         db.ref('painel_farmacia').set({
             funcionarios: data,
@@ -467,7 +465,7 @@
     }
 
     /* ==========================================
-       IMPORTAÇÃO DE EXCEL
+       IMPORTAÇÃO DE EXCEL (COM FILTRO ROBUSTO)
        ========================================== */
     function handleExcelImport(e) {
         const file = e.target.files[0];
@@ -500,15 +498,21 @@
                     nome = nome.trim();
                     let upperName = nome.toUpperCase();
                     
-                    if (upperName.includes("PORTAO") || upperName.startsWith("1123")) {
-                        let metaDiaLoja = cleanNumber(row[5]);
-                        if (metaDiaLoja > 0) {
-                            storeMetaManual = metaDiaLoja;
+                    if (
+                        upperName.includes("PORTAO") || 
+                        upperName.startsWith("1123") || 
+                        upperName.includes("TOTAL") || 
+                        upperName.includes("COLABORADOR") || 
+                        upperName.includes("NOME FUNCIONARIO") || 
+                        upperName === "NOME" || 
+                        upperName === ""
+                    ) {
+                        if (upperName.includes("PORTAO") || upperName.startsWith("1123")) {
+                            let metaDiaLoja = cleanNumber(row[5]);
+                            if (metaDiaLoja > 0) {
+                                storeMetaManual = metaDiaLoja;
+                            }
                         }
-                        continue;
-                    }
-
-                    if (upperName.includes("TOTAL") || upperName.includes("COLABORADOR") || upperName === "") {
                         continue;
                     }
 

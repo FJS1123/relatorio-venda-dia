@@ -295,7 +295,7 @@
     </div>
 
     <footer>
-        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v1.9)
+        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v2.0)
     </footer>
 </div>
 
@@ -318,6 +318,7 @@
     let panelTitle = "METAS - 29/10/2026";
     let data = [];
     let isEditMode = false;
+    let isSyncing = false;
 
     const defaultData = [
         { name: "AMANDA MOREIRA DORNELES", status: "Ativo", meta: 2174, venda: 794, clientes: 30, desconto: 1.51, ticket: 26 },
@@ -329,57 +330,21 @@
         { name: "NICOLAS SOUZA DE OLIVEIRA", status: "Sem Meta", meta: 0, venda: 219, clientes: 4, desconto: 0.0, ticket: 55 }
     ];
 
-    function loadFromCache() {
-        const cachedData = localStorage.getItem('fsj_data');
-        const cachedMeta = localStorage.getItem('fsj_metaLoja');
-        const cachedTitle = localStorage.getItem('fsj_titulo');
-
-        if (cachedData) {
-            data = JSON.parse(cachedData);
-        } else {
-            data = defaultData;
-        }
-
-        if (cachedMeta) storeMetaManual = parseFloat(cachedMeta);
-        if (cachedTitle) panelTitle = cachedTitle;
-
-        sortData();
-        renderTable();
-    }
-
-    loadFromCache();
-
-    db.ref('painel_farmacia').once('value').then((snapshot) => {
-        const val = snapshot.val();
-        if (val && val.funcionarios && val.funcionarios.length > 0) {
-            data = val.funcionarios;
-            if (val.metaLoja !== undefined) storeMetaManual = val.metaLoja;
-            if (val.titulo) panelTitle = val.titulo;
-            saveToCache();
-            sortData();
-            renderTable();
-        } else {
-            saveToFirebase();
-        }
-    });
-
+    // SINCRONIZAÇÃO EM TEMPO REAL COM O FIREBASE (FONTE ÚNICA DA VERDADE)
     db.ref('painel_farmacia').on('value', (snapshot) => {
         const val = snapshot.val();
         if (val && val.funcionarios && val.funcionarios.length > 0) {
             data = val.funcionarios;
             if (val.metaLoja !== undefined) storeMetaManual = val.metaLoja;
             if (val.titulo) panelTitle = val.titulo;
-            saveToCache();
-            sortData();
-            renderTable();
+        } else {
+            // Se o Firebase estiver vazio, inicializa com os dados padrão
+            data = defaultData;
+            saveToFirebase();
         }
+        sortData();
+        renderTable();
     });
-
-    function saveToCache() {
-        localStorage.setItem('fsj_data', JSON.stringify(data));
-        localStorage.setItem('fsj_metaLoja', storeMetaManual);
-        localStorage.setItem('fsj_titulo', panelTitle);
-    }
 
     function sortData() {
         data.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
@@ -387,7 +352,6 @@
 
     function saveToFirebase() {
         sortData();
-        saveToCache();
         db.ref('painel_farmacia').set({
             funcionarios: data,
             metaLoja: storeMetaManual,
@@ -526,7 +490,6 @@
                     let ticketVal = cleanNumber(row[8]);
                     let clientesVal = parseInt(row[11]) || 0;
 
-                    // Verifica se o funcionário já existia na tabela para preservar o status personalizado (ex: Gestora, Férias, Sem Meta)
                     let existing = data.find(emp => emp.name.toUpperCase().trim() === upperName);
                     let statusToUse = existing ? existing.status : (metaVal > 0 ? "Ativo" : "Sem Meta");
                     let finalMeta = existing ? existing.meta : (metaVal > 0 ? metaVal : 0);
@@ -544,7 +507,7 @@
             }
 
             if (newImportedEmployees.length > 0) {
-                data = newImportedEmployees; // Substitui exatamente pelos funcionários que vieram na planilha do dia
+                data = newImportedEmployees;
                 saveToFirebase();
                 alert(`Planilha importada com sucesso! Apenas os funcionários do dia foram mantidos (${data.length} colaboradores).`);
             } else {
@@ -725,7 +688,7 @@
                 renderTable();
             }
             
-            const imgData = canvas.toDataURL('png');
+            const imgData = canvas.toDataURL('image/png');
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('landscape', 'mm', 'a4');
             pdf.addImage(imgData, 'PNG', 10, 10, 280, (canvas.height * 280) / canvas.width);

@@ -20,7 +20,6 @@
     <style>
         /* ==========================================
            VARIÁVEIS DE CORES E CONFIGURAÇÕES GLOBAIS
-           Definição da identidade visual
            ========================================== */
         :root {
             --sj-blue: #2E3192;
@@ -67,7 +66,7 @@
             gap: 12px;
         }
 
-        /* Título do painel editável diretamente na tela */
+        /* Título do painel editável */
         .editable-title {
             color: var(--sj-blue);
             font-size: 1.5rem;
@@ -94,7 +93,7 @@
             flex-wrap: wrap;
         }
 
-        /* Botões de controle */
+        /* Botões de controle geral */
         button, .file-upload-btn {
             padding: 7px 14px;
             border: 1px solid #7f7f7f;
@@ -110,6 +109,8 @@
         .btn-success:hover { background-color: #273e18; }
         .btn-danger { background-color: var(--sj-red); color: white; border-color: #bd141b; }
         .btn-danger:hover { background-color: #bd141b; }
+        .btn-mode { background-color: #2E3192; color: white; border-color: #1f2165; }
+        .btn-mode:hover { background-color: #1f2165; }
 
         input[type="file"] { display: none; }
 
@@ -156,7 +157,7 @@
             background-color: #fcfcfc;
         }
 
-        /* Larguras específicas para colunas essenciais */
+        /* Larguras específicas para colunas */
         th:first-child, td:first-child {
             width: 290px;
             min-width: 290px;
@@ -168,11 +169,20 @@
         .text-left { text-align: left; }
         .text-right { text-align: right; }
 
-        /* Cores aplicadas aos selects de Status de cada colaborador */
-        .status-ativo { background-color: var(--sj-green); color: white; font-weight: bold; border: none; padding: 4px; border-radius: 3px; width: 100%; display: inline-block; text-align: center; }
-        .status-gestora { background-color: #595959; color: white; font-weight: bold; border: none; padding: 4px; border-radius: 3px; width: 100%; display: inline-block; text-align: center; }
-        .status-ferias { background-color: var(--sj-red); color: white; font-weight: bold; border: none; padding: 4px; border-radius: 3px; width: 100%; display: inline-block; text-align: center; }
-        .status-sem-meta { background-color: #7f7f7f; color: white; font-weight: bold; border: none; padding: 4px; border-radius: 3px; width: 100%; display: inline-block; text-align: center; }
+        /* Cores aplicadas aos status */
+        .status-badge {
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: white;
+            display: inline-block;
+            width: 90%;
+            text-align: center;
+        }
+        .status-ativo { background-color: var(--sj-green); }
+        .status-gestora { background-color: #595959; }
+        .status-ferias { background-color: var(--sj-red); }
+        .status-sem-meta { background-color: #7f7f7f; }
 
         /* Classes condicionais de destaque visual */
         .bg-yellow { background-color: #ffc000; color: black; font-weight: bold; }
@@ -180,7 +190,7 @@
         .bg-red { background-color: var(--sj-red); color: white; font-weight: bold; }
         .bg-gray { color: #7f7f7f; font-style: italic; }
 
-        /* Campos editáveis dentro das linhas da tabela */
+        /* Campos editáveis */
         .editable-input {
             width: 96%;
             padding: 5px;
@@ -212,15 +222,16 @@
 <div class="container" id="capture-area">
     <header>
         <div class="brand-area">
-            <!-- Título do painel interativo -->
+            <!-- Título do painel -->
             <input type="text" id="titulo-painel" class="editable-title" value="METAS - OUTUBRO" onchange="updateTitle(this.value)">
         </div>
         <div class="actions" id="no-print">
-            <!-- Botão com input oculto para carregar o arquivo Excel -->
-            <label class="file-upload-btn">
+            <!-- Botão para alternar entre Modo Edição e Modo Fixo -->
+            <button id="btn-mode-toggle" class="btn-mode" onclick="toggleEditMode()">🔒 Modo Fixo (Visualização)</button>
+            <label class="file-upload-btn edit-only">
                 📂 Importar Excel <input type="file" id="excel-file" accept=".xlsx, .xls" onchange="handleExcelImport(event)">
             </label>
-            <button onclick="addRow()">+ Adicionar</button>
+            <button class="edit-only" onclick="addRow()">+ Adicionar</button>
             <button class="btn-success" onclick="exportPDF()">Exportar PDF</button>
             <button class="btn-danger" onclick="exportJPG()">Exportar JPG</button>
         </div>
@@ -241,7 +252,7 @@
             </thead>
             <tbody>
                 <tr style="font-weight: bold; background: #ffffff;">
-                    <td><input type="number" id="store-meta" class="editable-input text-right" value="470000" onchange="updateStoreMeta(this.value)"></td>
+                    <td id="store-meta-container"><input type="number" id="store-meta" class="editable-input text-right" value="450726" onchange="updateStoreMeta(this.value)"></td>
                     <td id="store-realizado" class="text-right">R$ 0,00</td>
                     <td id="store-falta" class="text-right">R$ 0,00</td>
                     <td id="store-prog">0,00%</td>
@@ -266,7 +277,7 @@
                     <th>Clientes</th>
                     <th>Desc. Balcão (%)</th>
                     <th>Ticket</th>
-                    <th id="th-acoes">Ações</th>
+                    <th id="th-acoes" class="edit-only">Ações</th>
                 </tr>
             </thead>
             <tbody id="employee-table-body">
@@ -281,7 +292,7 @@
     </div>
 
     <footer>
-        Desenvolvido por Nick Oliver - 2026
+        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026
     </footer>
 </div>
 
@@ -303,11 +314,11 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let storeMetaManual = 470000;
+    let storeMetaManual = 450726;
     let panelTitle = "METAS - OUTUBRO";
     let data = [];
+    let isEditMode = false; // Começa em modo fixo para visualização limpa e exportação perfeita
 
-    // Lista padrão de funcionários caso o banco online esteja vazio
     const defaultData = [
         { name: "AMANDA MOREIRA DORNELES", status: "Ativo", meta: 50000, venda: 24364, clientes: 478, desconto: 2.56, ticket: 51 },
         { name: "ARIANE LOURENCO CUTHI", status: "Ativo", meta: 22040, venda: 17998, clientes: 212, desconto: 4.35, ticket: 85 },
@@ -324,17 +335,16 @@
 
     /* ==========================================
        SINCRONIZAÇÃO EM TEMPO REAL
-       Ouve alterações no banco de dados e atualiza a tela automaticamente
        ========================================== */
     db.ref('painel_farmacia').on('value', (snapshot) => {
         const val = snapshot.val();
         if (val) {
             data = val.funcionarios || defaultData;
-            storeMetaManual = val.metaLoja !== undefined ? val.metaLoja : 470000;
+            storeMetaManual = val.metaLoja !== undefined ? val.metaLoja : 450726;
             panelTitle = val.titulo || "METAS - OUTUBRO";
         } else {
             data = defaultData;
-            storeMetaManual = 470000;
+            storeMetaManual = 450726;
             panelTitle = "METAS - OUTUBRO";
             saveToFirebase();
         }
@@ -342,12 +352,10 @@
         renderTable();
     });
 
-    // Ordena alfabeticamente por nome do colaborador
     function sortData() {
         data.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
     }
 
-    // Salva todas as alterações estruturais no Firebase
     function saveToFirebase() {
         sortData();
         db.ref('painel_farmacia').set({
@@ -358,7 +366,23 @@
     }
 
     /* ==========================================
-       FUNÇÕES DE FORMATAÇÃO E MANIPULAÇÃO DE DADOS
+       CONTROLE DO MODO EDIÇÃO VS MODO FIXO
+       ========================================== */
+    function toggleEditMode() {
+        isEditMode = !isEditMode;
+        const btn = document.getElementById("btn-mode-toggle");
+        if (isEditMode) {
+            btn.innerText = "🔓 Modo Edição Ativo";
+            btn.style.backgroundColor = "#ED1C24";
+        } else {
+            btn.innerText = "🔒 Modo Fixo (Visualização)";
+            btn.style.backgroundColor = "#2E3192";
+        }
+        renderTable();
+    }
+
+    /* ==========================================
+       FUNÇÕES DE FORMATAÇÃO E DADOS
        ========================================== */
     function updateTitle(val) {
         panelTitle = val;
@@ -416,8 +440,7 @@
     }
 
     /* ==========================================
-       IMPORTAÇÃO INTELIGENTE DE EXCEL
-       Lê o arquivo, ignora linhas gerais e atualiza métricas
+       IMPORTAÇÃO DE EXCEL
        ========================================== */
     function handleExcelImport(e) {
         const file = e.target.files[0];
@@ -487,20 +510,32 @@
 
             if (updatedCount > 0) {
                 saveToFirebase();
-                alert("Planilha importada com sucesso! A linha da loja foi ignorada e os status/metas foram preservados.");
+                alert("Planilha importada com sucesso!");
             } else {
-                alert("Nenhum colaborador correspondente foi encontrado na planilha.");
+                alert("Nenhum colaborador correspondente encontrado.");
             }
         };
         reader.readAsArrayBuffer(file);
     }
 
     /* ==========================================
-       RENDERIZAÇÃO DA TABELA E REGRAS CONDICIONAIS
+       RENDERIZAÇÃO DA TABELA
        ========================================== */
     function renderTable() {
         document.getElementById("titulo-painel").value = panelTitle;
-        document.getElementById("store-meta").value = storeMetaManual;
+        
+        const metaLojaContainer = document.getElementById("store-meta-container");
+        if (isEditMode) {
+            metaLojaContainer.innerHTML = `<input type="number" id="store-meta" class="editable-input text-right" value="${storeMetaManual}" onchange="updateStoreMeta(this.value)">`;
+        } else {
+            metaLojaContainer.innerHTML = formatMoney(storeMetaManual);
+            metaLojaContainer.className = "text-right";
+        }
+
+        document.querySelectorAll('.edit-only').forEach(el => {
+            el.style.display = isEditMode ? '' : 'none';
+        });
+
         const tbody = document.getElementById("employee-table-body");
         tbody.innerHTML = "";
 
@@ -541,29 +576,48 @@
             else if (emp.status === 'Férias') statusClass = "status-ferias";
             else if (emp.status === 'Sem Meta') statusClass = "status-sem-meta";
 
+            let colName = isEditMode 
+                ? `<input type="text" class="editable-input text-left" value="${emp.name}" onchange="updateData(${index}, 'name', this.value)">`
+                : `<span class="text-left" style="display:block;">${emp.name}</span>`;
+
+            let colStatus = isEditMode
+                ? `<select class="${statusClass}" style="width:100%; border:none; padding:4px; border-radius:3px;" onchange="updateData(${index}, 'status', this.value)">
+                    <option value="Ativo" ${emp.status === 'Ativo' ? 'selected' : ''}>Ativo</option>
+                    <option value="Gestora" ${emp.status === 'Gestora' ? 'selected' : ''}>Gestora</option>
+                    <option value="Férias" ${emp.status === 'Férias' ? 'selected' : ''}>Férias</option>
+                    <option value="Sem Meta" ${emp.status === 'Sem Meta' ? 'selected' : ''}>Sem Meta</option>
+                   </select>`
+                : `<span class="status-badge ${statusClass}">${emp.status}</span>`;
+
+            let colMeta = isEditMode
+                ? `<input type="text" class="editable-input text-right" value="${formatMoney(emp.meta)}" onfocus="unformatMetaInput(this, ${index})" onblur="formatMetaInput(this, ${index})" onchange="updateData(${index}, 'meta', this.value)">`
+                : formatMoney(emp.meta);
+
+            let colVenda = isEditMode
+                ? `<input type="text" class="editable-input text-right" value="${formatMoney(emp.venda)}" onfocus="unformatVendaInput(this, ${index})" onblur="formatVendaInput(this, ${index})" onchange="updateData(${index}, 'venda', this.value)">`
+                : formatMoney(emp.venda);
+
+            let colAcoes = isEditMode
+                ? `<td><button class="btn-danger" style="padding: 2px 6px; font-size: 0.75rem;" onclick="removeRow(${index})">X</button></td>`
+                : ``;
+
             let row = document.createElement("tr");
             row.innerHTML = `
-                <td class="text-left"><input type="text" class="editable-input text-left" value="${emp.name}" onchange="updateData(${index}, 'name', this.value)"></td>
-                <td>
-                    <select class="${statusClass}" onchange="updateData(${index}, 'status', this.value)">
-                        <option value="Ativo" ${emp.status === 'Ativo' ? 'selected' : ''}>Ativo</option>
-                        <option value="Gestora" ${emp.status === 'Gestora' ? 'selected' : ''}>Gestora</option>
-                        <option value="Férias" ${emp.status === 'Férias' ? 'selected' : ''}>Férias</option>
-                        <option value="Sem Meta" ${emp.status === 'Sem Meta' ? 'selected' : ''}>Sem Meta</option>
-                    </select>
-                </td>
-                <td><input type="text" class="editable-input text-right" value="${formatMoney(emp.meta)}" onfocus="unformatMetaInput(this, ${index})" onblur="formatMetaInput(this, ${index})" onchange="updateData(${index}, 'meta', this.value)"></td>
-                <td><input type="text" class="editable-input text-right" value="${formatMoney(emp.venda)}" onfocus="unformatVendaInput(this, ${index})" onblur="formatVendaInput(this, ${index})" onchange="updateData(${index}, 'venda', this.value)"></td>
+                <td class="text-left">${colName}</td>
+                <td>${colStatus}</td>
+                <td class="text-right">${colMeta}</td>
+                <td class="text-right">${colVenda}</td>
                 <td class="text-right ${faltaClass}">${faltaText}</td>
                 <td class="${progClass}">${progresso.toFixed(2)}%</td>
                 <td>${emp.clientes}</td>
                 <td class="${descClass}">${emp.desconto.toFixed(2)}%</td>
                 <td class="text-right" style="white-space: nowrap;">${formatMoney(emp.ticket)}</td>
-                <td><button class="btn-danger" style="padding: 2px 6px; font-size: 0.75rem;" onclick="removeRow(${index})">X</button></td>
+                ${colAcoes}
             `;
             tbody.appendChild(row);
         });
 
+        // Totais e cálculos gerais da loja
         let faltaLoja = Math.max(0, storeMetaManual - totalVendaLoja);
         let progLoja = storeMetaManual > 0 ? (totalVendaLoja / storeMetaManual) * 100 : 0;
         let mediaDesc = countAtivos > 0 ? somaDesc / countAtivos : 0;
@@ -575,8 +629,8 @@
         document.getElementById("store-desc").innerText = mediaDesc.toFixed(2) + "%";
         document.getElementById("store-ticket").innerText = formatMoney(mediaTicket);
 
-        // Preenche a linha de rodapé com os totais gerais (Corrigido o erro de sintaxe do percentual)
         const tfoot = document.getElementById("table-total");
+        let tfootAcoes = isEditMode ? `<td>-</td>` : ``;
         tfoot.innerHTML = `
             <td class="text-left">Total</td>
             <td>-</td>
@@ -587,74 +641,60 @@
             <td>${totalClientes}</td>
             <td>${mediaDesc.toFixed(2)}%</td>
             <td class="text-right" style="white-space: nowrap;">${formatMoney(mediaTicket)}</td>
-            <td>-</td>
+            ${tfootAcoes}
         `;
     }
 
     /* ==========================================
-       TRATAMENTO PARA EXPORTAÇÃO LIMPA (JPG / PDF)
+       EXPORTAÇÃO PARA JPG E PDF
        ========================================== */
-    function prepareForCapture(container) {
-        container.querySelectorAll('input, select').forEach(el => {
-            let span = document.createElement('span');
-            span.className = 'temp-capture-span';
-            if (el.tagName === 'SELECT') {
-                span.innerText = el.options[el.selectedIndex].text;
-                span.className = el.className;
-                span.style.padding = "4px";
-                span.style.borderRadius = "3px";
-                span.style.display = "inline-block";
-            } else {
-                span.innerText = el.value;
-                span.style.fontWeight = "inherit";
-            }
-            el.style.display = 'none';
-            el.parentNode.insertBefore(span, el);
-        });
-    }
-
-    function restoreAfterCapture(container) {
-        container.querySelectorAll('.temp-capture-span').forEach(span => {
-            span.nextElementSibling.style.display = '';
-            span.remove();
-        });
-    }
-
     function exportJPG() {
+        const wasEditing = isEditMode;
+        if (wasEditing) {
+            isEditMode = false;
+            renderTable();
+        }
+
         const captureArea = document.getElementById("capture-area");
         document.getElementById("no-print").style.display = "none";
-        document.querySelectorAll("button.btn-danger").forEach(el => el.style.display = "none");
-        
-        prepareForCapture(captureArea);
 
         html2canvas(captureArea, { scale: 2, useCORS: true }).then(canvas => {
-            restoreAfterCapture(captureArea);
             document.getElementById("no-print").style.display = "flex";
-            document.querySelectorAll("button.btn-danger").forEach(el => el.style.display = "inline-block");
+            if (wasEditing) {
+                isEditMode = true;
+                renderTable();
+            }
             
             let link = document.createElement('a');
             link.download = 'controle-metas.jpg';
             link.href = canvas.toDataURL('image/jpeg', 0.95);
             link.click();
         }).catch(err => {
-            restoreAfterCapture(captureArea);
             document.getElementById("no-print").style.display = "flex";
-            document.querySelectorAll("button.btn-danger").forEach(el => el.style.display = "inline-block");
+            if (wasEditing) {
+                isEditMode = true;
+                renderTable();
+            }
             console.error(err);
         });
     }
 
     function exportPDF() {
+        const wasEditing = isEditMode;
+        if (wasEditing) {
+            isEditMode = false;
+            renderTable();
+        }
+
         const captureArea = document.getElementById("capture-area");
         document.getElementById("no-print").style.display = "none";
-        document.querySelectorAll("button.btn-danger").forEach(el => el.style.display = "none");
-        
-        prepareForCapture(captureArea);
 
         html2canvas(captureArea, { scale: 2, useCORS: true }).then(canvas => {
-            restoreAfterCapture(captureArea);
             document.getElementById("no-print").style.display = "flex";
-            document.querySelectorAll("button.btn-danger").forEach(el => el.style.display = "inline-block");
+            if (wasEditing) {
+                isEditMode = true;
+                renderTable();
+            }
             
             const imgData = canvas.toDataURL('image/png');
             const { jsPDF } = window.jspdf;
@@ -662,9 +702,11 @@
             pdf.addImage(imgData, 'PNG', 10, 10, 280, (canvas.height * 280) / canvas.width);
             pdf.save('controle-metas.pdf');
         }).catch(err => {
-            restoreAfterCapture(captureArea);
             document.getElementById("no-print").style.display = "flex";
-            document.querySelectorAll("button.btn-danger").forEach(el => el.style.display = "inline-block");
+            if (wasEditing) {
+                isEditMode = true;
+                renderTable();
+            }
             console.error(err);
         });
     }

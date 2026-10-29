@@ -143,7 +143,7 @@
         th, td {
             border: 1px solid var(--sj-border);
             padding: 8px 10px;
-            white-space: nowrap; /* Evita quebra indesejada de textos e números */
+            white-space: nowrap;
         }
 
         th {
@@ -165,35 +165,29 @@
         }
 
         /* --- AJUSTE DE ESPAÇAMENTO DAS COLUNAS (COLABORADORES) --- */
-        /* Colaborador: permite crescer mantendo limite legível */
         .col-colaborador {
             width: 25%;
             min-width: 220px;
             text-align: left;
-            white-space: normal; /* Permite quebrar nome se a tela for pequena */
+            white-space: normal;
         }
-        /* Status */
         .col-status {
             width: 110px;
             min-width: 100px;
         }
-        /* Valores em Dinheiro (Meta, Realizado, Falta, Ticket) */
         .col-money {
             width: 11%;
             min-width: 115px;
             text-align: right;
         }
-        /* Percentuais (Progresso, Desconto) */
         .col-percent {
             width: 9%;
             min-width: 90px;
         }
-        /* Clientes */
         .col-clientes {
             width: 7%;
             min-width: 70px;
         }
-        /* Ações */
         .col-acoes {
             width: 60px;
         }
@@ -473,7 +467,7 @@
     }
 
     /* ==========================================
-       IMPORTAÇÃO DE EXCEL
+       IMPORTAÇÃO DE EXCEL (CORRIGIDA)
        ========================================== */
     function handleExcelImport(e) {
         const file = e.target.files[0];
@@ -488,7 +482,7 @@
 
             for (let i = 1; i < json.length; i++) {
                 let row = json[i];
-                let nome = row[2] || row[0];
+                let nome = row[0] || row[1] || row[2];
                 
                 if (nome && typeof nome === 'string') {
                     nome = nome.trim();
@@ -499,7 +493,10 @@
                     }
 
                     let vendaVal = cleanNumber(row[4]);
-                    let descVal = cleanNumber(row[7]);
+                    
+                    let rawDesc = cleanNumber(row[7]);
+                    let descVal = rawDesc <= 1 ? rawDesc * 100 : rawDesc;
+                    
                     let ticketVal = cleanNumber(row[8]);
                     let clientesVal = parseInt(row[11]) || 0;
 
@@ -513,8 +510,9 @@
             }
 
             let updatedCount = 0;
+
             data.forEach(emp => {
-                let key = emp.name.toUpperCase();
+                let key = emp.name.toUpperCase().trim();
                 if (importedMap.has(key)) {
                     let imp = importedMap.get(key);
                     emp.venda = imp.venda;
@@ -522,23 +520,21 @@
                     emp.desconto = imp.desconto;
                     emp.ticket = imp.ticket;
                     updatedCount++;
+                    importedMap.delete(key);
                 }
             });
 
             importedMap.forEach((imp, nameKey) => {
-                let exists = data.some(emp => emp.name.toUpperCase() === nameKey);
-                if (!exists) {
-                    data.push({
-                        name: nameKey,
-                        status: "Ativo",
-                        meta: 30000,
-                        venda: imp.venda,
-                        clientes: imp.clientes,
-                        desconto: imp.desconto,
-                        ticket: imp.ticket
-                    });
-                    updatedCount++;
-                }
+                data.push({
+                    name: nameKey,
+                    status: "Ativo",
+                    meta: 30000,
+                    venda: imp.venda,
+                    clientes: imp.clientes,
+                    desconto: imp.desconto,
+                    ticket: imp.ticket
+                });
+                updatedCount++;
             });
 
             if (updatedCount > 0) {
@@ -650,7 +646,6 @@
             tbody.appendChild(row);
         });
 
-        // Totais e cálculos gerais da loja
         let faltaLoja = Math.max(0, storeMetaManual - totalVendaLoja);
         let progLoja = storeMetaManual > 0 ? (totalVendaLoja / storeMetaManual) * 100 : 0;
         let mediaDesc = countAtivos > 0 ? somaDesc / countAtivos : 0;

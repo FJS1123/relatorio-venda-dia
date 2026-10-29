@@ -320,7 +320,7 @@
     </div>
 
     <footer>
-        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v1.4)
+        Farmácia São João — Filial 1123 (Portão 2) | Desenvolvido por Nick Oliver - 2026 (v1.5)
     </footer>
 </div>
 
@@ -344,12 +344,7 @@
 
     let storeMetaManual = 14095;
     let panelTitle = "METAS - 29/10/2026";
-    let data = [];
-    let isEditMode = false;
-    let isDataLoaded = false;
-
-    // Equipe padrão de segurança caso o banco retorne vazio
-    const defaultData = [
+    let data = [
         { name: "AMANDA MOREIRA DORNELES", status: "Ativo", meta: 2174, venda: 794, clientes: 30, desconto: 1.51, ticket: 26 },
         { name: "ARIANE LOURENCO CUTHI", status: "Ativo", meta: 848, venda: 135, clientes: 1, desconto: 24.89, ticket: 135 },
         { name: "CATIELE ZAIACZKOSKI", status: "Ativo", meta: 879, venda: 1519, clientes: 20, desconto: 11.33, ticket: 76 },
@@ -358,24 +353,54 @@
         { name: "GILBERTO AFONSO DIEDER", status: "Ativo", meta: 1591, venda: 1584, clientes: 33, desconto: 6.10, ticket: 48 },
         { name: "NICOLAS SOUZA DE OLIVEIRA", status: "Ativo", meta: 30000, venda: 219, clientes: 4, desconto: 0.0, ticket: 55 }
     ];
+    let isEditMode = false;
+    let allowSync = false;
 
     /* ==========================================
-       SINCRONIZAÇÃO SEGURA EM TEMPO REAL COM FIREBASE
+       SINCRONIZAÇÃO BLINDADA COM FIREBASE
        ========================================== */
-    db.ref('painel_farmacia').on('value', (snapshot) => {
+    db.ref('painel_farmacia').once('value').then((snapshot) => {
         const val = snapshot.val();
-        if (val && val.funcionarios && Array.isArray(val.funcionarios) && val.funcionarios.length > 0) {
-            data = val.funcionarios;
-            if (val.metaLoja !== undefined) storeMetaManual = val.metaLoja;
-            if (val.titulo) panelTitle = val.titulo;
+        if (val) {
+            if (val.funcionarios && Array.isArray(val.funcionarios) && val.funcionarios.length > 0) {
+                data = val.funcionarios;
+            }
+            if (val.metaLoja !== undefined) {
+                storeMetaManual = val.metaLoja;
+            }
+            if (val.titulo) {
+                panelTitle = val.titulo;
+            }
         } else {
-            // Se o Firebase estiver vazio, carrega os dados padrão para a tabela não sumir
-            data = defaultData;
-            saveToFirebase();
+            // Se o Firebase estiver vazio, grava os dados iniciais com segurança
+            db.ref('painel_farmacia').set({
+                funcionarios: data,
+                metaLoja: storeMetaManual,
+                titulo: panelTitle
+            });
         }
-        isDataLoaded = true;
+        allowSync = true;
         sortData();
         renderTable();
+    });
+
+    // Escuta alterações em tempo real vindas de outros dispositivos/abas
+    db.ref('painel_farmacia').on('value', (snapshot) => {
+        if (!allowSync) return;
+        const val = snapshot.val();
+        if (val) {
+            if (val.funcionarios && Array.isArray(val.funcionarios)) {
+                data = val.funcionarios;
+            }
+            if (val.metaLoja !== undefined) {
+                storeMetaManual = val.metaLoja;
+            }
+            if (val.titulo) {
+                panelTitle = val.titulo;
+            }
+            sortData();
+            renderTable();
+        }
     });
 
     function sortData() {
@@ -383,7 +408,7 @@
     }
 
     function saveToFirebase() {
-        if (!isDataLoaded) return;
+        if (!allowSync) return;
         sortData();
         db.ref('painel_farmacia').set({
             funcionarios: data,
